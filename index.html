@@ -17,7 +17,17 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#0f0f10 0%, #15
 /* top bar */
 .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .title{display:flex;gap:12px;align-items:center}
-.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ff9c57);display:flex;align-items:center;justify-content:center;color:#111;font-weight:800}
+.logo {
+  width: 100px;   /* increase size */
+  height: 100px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), #ff9c57);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* makes image stay inside rounded corners */
+}
+
 .h1{font-size:20px;font-weight:700;color:var(--accent)}
 
 /* panels */
@@ -68,10 +78,17 @@ canvas{width:100%;height:auto;border-radius:10px;touch-action:none;}
 </style>
 </head>
 <body>
+
+
+    <audio id="bg-music" src="welcome.mp3" loop></audio>
+
 <div class="app">
   <div class="header">
     <div class="title">
-      <div class="logo">SW</div>
+      <div class="logo">
+  <img src="logo.jpg" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" />
+</div>
+
       <div>
         <div class="h1">Dev Sammy Spin Wheel</div>
         <div class="small">Spin to Win — Earn Real Money</div>
@@ -298,6 +315,19 @@ function refreshUI(){
   renderStakes();
   updateTop();
 }
+
+
+// background music setup
+const bgMusic = document.getElementById("bg-music");
+
+// start music only after first click/tap (to satisfy browser policies)
+document.addEventListener("click", () => {
+  if (bgMusic.paused) {
+    bgMusic.volume = 0.4; // adjust volume 0.0 - 1.0
+    bgMusic.play().catch(e => console.log("Autoplay blocked:", e));
+  }
+}, { once: true });
+
 
 /* stakes UI */
 function renderStakes(){
