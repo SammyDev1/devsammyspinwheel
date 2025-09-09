@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Dev Sammy Spin Wheel</title>
+<style>
+:root{
+  --bg:#121214; --panel:#1f1f23; --muted:#9ca3af; --accent:#ffd057; --primary:#00c878;
+  --danger:#ff4d4d; --glass: rgba(255,255,255,0.03);
+  --card-radius:18px; --btn-radius:12px; --font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+*{box-sizing:border-box;font-family:var(--font-family);}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#0f0f10 0%, #151518 60%);color:#fff;-webkit-font-smoothing:antialiased;}
+.app{max-width:980px;margin:18px auto;padding:18px;}
+
+/* top bar */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.title{display:flex;gap:12px;align-items:center}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ff9c57);display:flex;align-items:center;justify-content:center;color:#111;font-weight:800}
+.h1{font-size:20px;font-weight:700;color:var(--accent)}
+
+/* panels */
+.panel{background:linear-gradient(180deg,var(--panel), rgba(255,255,255,0.02));border-radius:var(--card-radius);padding:16px;box-shadow: 0 6px 26px rgba(0,0,0,0.5);}
+.row{display:flex;gap:12px;align-items:center}
+.col{display:flex;flex-direction:column;gap:8px}
+
+/* buttons */
+.btn{padding:10px 14px;border-radius:var(--btn-radius);border:0;cursor:pointer;font-weight:600}
+.btn-primary{Background:var(--primary);color:#06110a}
+.btn-accent{background:var(--accent);color:#111}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+/* responsive */
+.controls{display:flex;flex-wrap:wrap;gap:8px}
+.sidebar{min-width:260px;max-width:320px}
+.content{flex:1}
+
+/* inputs */
+.input{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(0,0,0,0.2);color:#fff;width:100%}
+
+/* canvas */
+.canvas-wrap{background:linear-gradient(180deg,#111 0%, #1b1b1b 100%);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center}
+canvas{width:100%;height:auto;border-radius:10px;touch-action:none;}
+
+/* stake buttons grid */
+.stakes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stake-btn{padding:8px;border-radius:10px;border:0;font-weight:700}
+
+/* transaction list */
+.tx-list{max-height:260px;overflow:auto;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02)}
+
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:rgba(0,0,0,0.7);padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+
+/* small */
+.small{font-size:13px;color:var(--muted)}
+.center{display:flex;align-items:center;justify-content:center}
+
+/* utility */
+.hidden{display:none}
+
+/* mobile adapt */
+@media (max-width:820px){
+  .row{flex-direction:column;align-items:stretch}
+  .sidebar{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">
+      <div class="logo">SW</div>
+      <div>
+        <div class="h1">Dev Sammy Spin Wheel</div>
+        <div class="small">Spin to Win — Earn Real Money</div>
+      </div>
+    </div>
+    <div id="top-controls" class="small"></div>
+  </div>
+
+  <!-- main container -->
+  <div class="panel row" id="main-panel">
+    <!-- left/content area -->
+    <div class="content">
+      <!-- login screen -->
+      <div id="screen-login">
+        <h2>Login or Create Account</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <input id="inp-username" class="input" placeholder="Username" />
+          <input id="inp-password" class="input" placeholder="Password" type="password" />
+          <div style="display:flex;gap:8px;width:100%">
+            <button id="btn-login" class="btn btn-primary">Login</button>
+            <button id="btn-signup" class="btn btn-accent">Create Account</button>
+            <button id="btn-guest" class="btn btn-ghost">Try Guest</button>
+          </div>
+          <div class="small">New accounts start with <strong>200</strong> Free Bet.</div>
+        </div>
+      </div>
+
+      <!-- menu screen -->
+      <div id="screen-menu" class="hidden">
+        <h2>Welcome <span id="menu-user"></span></h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="goto-game" class="btn btn-accent">Play Wheel</button>
+          <button id="goto-profile" class="btn btn-ghost">Profile</button>
+          <button id="goto-settings" class="btn btn-ghost">Settings</button>
+          <button id="goto-history" class="btn btn-ghost">Transactions</button>
+          <button id="btn-logout" class="btn" style="background:#922; color:white">Logout</button>
+        </div>
+        <div style="margin-top:12px" class="small">Balance: <strong id="menu-balance"></strong></div>
+      </div>
+
+      <!-- game screen -->
+      <div id="screen-game" class="hidden">
+        <h2>Spin Wheel</h2>
+        <div class="row" style="margin-top:12px">
+          <div class="canvas-wrap" style="flex:1;min-width:260px">
+            <canvas id="wheel-canvas" width="600" height="600"></canvas>
+          </div>
+          <div class="sidebar col">
+            <div class="panel small">
+              <div>Balance: <strong id="game-balance"></strong></div>
+              <div>Stake: <strong id="game-stake"></strong></div>
+            </div>
+
+            <div class="panel small">
+              <div class="small">Stakes (tap once to choose, tap same twice to x2)</div>
+              <div class="stakes" id="stakes-grid"></div>
+            </div>
+
+            <div class="panel small center" style="flex-direction:column">
+              <button id="btn-spin" class="btn btn-primary" style="width:100%">SPIN</button>
+              <button id="btn-playagain" class="btn btn-accent hidden" style="width:100%;margin-top:8px">PLAY AGAIN</button>
+              <div style="display:flex;gap:8px;margin-top:8px;width:100%">
+                <button id="btn-back-menu" class="btn btn-ghost" style="flex:1">Back</button>
+                <button id="btn-reset" class="btn" style="flex:1;background:#333">Reset</button>
+              </div>
+            </div>
+            <div id="game-result" class="panel small center hidden" style="margin-top:8px;font-weight:700"></div>
+          </div>
+        </div>
+        <div class="small" style="margin-top:8px">Tip: on mobile rotate the device for larger canvas.</div>
+      </div>
+
+      <!-- profile screen -->
+      <div id="screen-profile" class="hidden">
+        <h2>Profile</h2>
+        <div class="row" style="gap:18px;margin-top:12px">
+          <div class="panel small">
+            <div>User: <strong id="profile-user"></strong></div>
+            <div>Balance: <strong id="profile-balance"></strong></div>
+            <div id="profile-bank-line" class="small" style="margin-top:6px"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:200px">
+            <button id="btn-deposit" class="btn btn-primary">Deposit</button>
+            <button id="btn-withdraw" class="btn btn-ghost">Withdraw</button>
+            <button id="btn-bank" class="btn btn-accent">Bank Account</button>
+            <button id="btn-back-menu2" class="btn" style="background:#333;color:#fff">Back</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- bank screen -->
+      <div id="screen-bank" class="hidden">
+        <h2>Bank Account</h2>
+        <div class="row" style="gap:12px;margin-top:12px">
+          <div class="panel small" style="flex:1">
+            <div id="bank-info">No bank linked</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:200px">
+            <button id="btn-addbank" class="btn btn-accent">Add / Update Bank</button>
+            <button id="btn-unlinkbank" class="btn btn-ghost">Unlink Bank</button>
+            <button id="btn-back-profile" class="btn" style="background:#333;color:#fff">Back</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- history screen -->
+      <div id="screen-history" class="hidden">
+        <h2>Transactions</h2>
+        <div class="tx-list panel small" id="tx-list"></div>
+        <div style="margin-top:8px"><button id="btn-back-from-history" class="btn btn-ghost">Back</button></div>
+      </div>
+
+      <!-- settings screen -->
+      <div id="screen-settings" class="hidden">
+        <h2>Settings</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="btn-change-pw" class="btn btn-accent">Change Password</button>
+          <button id="btn-back-from-settings" class="btn btn-ghost">Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script>
+/* Single-file Spin Wheel game - vanilla JS
+   - localStorage-backed users: { username: { passwordHash, balance, transactions, bank } }
+   - password hashing via SubtleCrypto (SHA-256)
+   - canvas wheel rendering and spin logic
+*/
+
+const LS_USERS = 'spinwheel_users_v1';
+const LS_SESSION = 'spinwheel_session_v1';
+const PRIZES = ['x2','X','x4','x6','X','x8','x10','x12','X','x14','x16'];
+const COLORS = ['#f05454','#323232','#54a0f0','#78c878','#1e1e1e','#ffd057','#c470ff','#57f5c8','#1e1e1e','#f078c8','#c864c8'];
+const STAKE_OPTIONS = [50,100,150,200,500,1000];
+const ARROW_ANGLE = 270;
+
+function loadUsers(){ try { return JSON.parse(localStorage.getItem(LS_USERS) || '{}'); } catch(e){ return {}; } }
+function saveUsers(u){ localStorage.setItem(LS_USERS, JSON.stringify(u)); }
+function getSession(){ return localStorage.getItem(LS_SESSION); }
+function setSession(s){ if(!s) localStorage.removeItem(LS_SESSION); else localStorage.setItem(LS_SESSION,s); }
+
+async function hashText(str){ const buf = new TextEncoder().encode(str); const dig = await crypto.subtle.digest('SHA-256', buf); return Array.from(new Uint8Array(dig)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function formatDateIso(ts){ return new Date(ts).toISOString().replace('T',' ').slice(0,19); }
+
+/* DOM */
+const el = id => document.getElementById(id);
+const toastEl = el('toast');
+function showToast(msg, t=1800){ toastEl.textContent = msg; toastEl.classList.remove('hidden'); clearTimeout(window._to); window._to = setTimeout(()=>toastEl.classList.add('hidden'), t); }
+
+/* screens */
+const screens = ['login','menu','game','profile','bank','history','settings'];
+function showScreen(name){ screens.forEach(s=>el('screen-'+s).classList.add('hidden')); el('screen-'+name).classList.remove('hidden'); updateTop(); }
+
+/* state */
+let USERS = loadUsers();
+let CURRENT = getSession();
+let GAME = { angle:0, speed:0, spinning:false, stake:STAKE_OPTIONS[0], lastClicked:null, showPlayAgain:false };
+
+/* init UI references */
+const canvas = el('wheel-canvas');
+const ctx = canvas.getContext('2d');
+let dpr = window.devicePixelRatio || 1;
+
+/* helpers */
+function saveAll(){ saveUsers(USERS); }
+function ensureUser(username){ if(!USERS[username]) USERS[username] = { passwordHash:null, balance:0, transactions:[], bank:null }; return USERS[username]; }
+function maskAccount(acc=''){ const s = (acc||'').replace(/[^0-9a-zA-Z]/g,''); if(s.length<=4) return '•'.repeat(Math.max(0,s.length-1))+s.slice(-1); return '•'.repeat(s.length-4)+s.slice(-4); }
+
+/* auth actions */
+async function signup(username, password){
+  if(!username||!password) return showToast('Missing credentials');
+  if(USERS[username]) return showToast('User exists');
+  const h = await hashText(password);
+  USERS[username] = { passwordHash:h, balance:200, transactions:[], bank:null };
+  saveAll();
+  CURRENT = username; setSession(username);
+  showToast('Registered ✓'); refreshUI(); showScreen('menu');
+}
+async function login(username,password){
+  if(!username||!password) return showToast('Missing credentials');
+  const u = USERS[username]; if(!u) return showToast('No such user');
+  const h = await hashText(password); if(h !== u.passwordHash) return showToast('Wrong password');
+  CURRENT = username; setSession(username); showToast('Welcome '+username); refreshUI(); showScreen('menu');
+}
+function guestLogin(){
+  const name = 'guest_'+Math.floor(Math.random()*9999);
+  USERS[name] = { passwordHash:null, balance:200, transactions:[], bank:null };
+  saveAll(); CURRENT = name; setSession(name); showToast('Guest created'); refreshUI(); showScreen('menu');
+}
+function logout(){ CURRENT = null; setSession(null); showToast('Logged out'); refreshUI(); showScreen('login'); }
+
+/* transactions */
+function addTransaction(username, type, amount){
+  if(!USERS[username]) return;
+  USERS[username].transactions.unshift({ type, amount, ts: new Date().toISOString() });
+  saveAll();
+}
+
+/* update UI */
+function updateTop(){
+  const tc = el('top-controls');
+  if(CURRENT){ tc.innerHTML = `<span style="opacity:.8">${CURRENT}</span> <button id="mini-menu" class="btn btn-ghost" style="padding:6px 8px;margin-left:8px">Menu</button> <button id="mini-logout" class="btn" style="padding:6px 8px;background:#922">Logout</button>`;
+    el('mini-logout').onclick = logout; el('mini-menu').onclick = ()=>showScreen('menu');
+  } else { tc.innerHTML = ''; }
+}
+function refreshUI(){
+  USERS = loadUsers();
+  saveAll();
+  el('inp-username').value = el('inp-username').value || '';
+  el('inp-password').value = el('inp-password').value || '';
+  el('menu-user').textContent = CURRENT || '';
+  el('menu-balance').textContent = CURRENT ? Math.floor((USERS[CURRENT]?.balance)||0) : '0';
+  el('profile-user').textContent = CURRENT||'';
+  el('profile-balance').textContent = CURRENT ? Math.floor((USERS[CURRENT]?.balance)||0) : '0';
+  el('game-balance').textContent = CURRENT ? Math.floor((USERS[CURRENT]?.balance)||0) : '0';
+  el('game-stake').textContent = GAME.stake;
+  el('bank-info').textContent = USERS[CURRENT]?.bank ? `${USERS[CURRENT].bank.bank_name} • ${maskAccount(USERS[CURRENT].bank.acc_num)} (${USERS[CURRENT].bank.acc_name})` : 'No bank linked';
+  el('profile-bank-line').textContent = USERS[CURRENT]?.bank ? `Bank: ${USERS[CURRENT].bank.bank_name} • ${maskAccount(USERS[CURRENT].bank.acc_num)} (${USERS[CURRENT].bank.acc_name})` : 'No bank linked';
+  renderTxList();
+  renderStakes();
+  updateTop();
+}
+
+/* stakes UI */
+function renderStakes(){
+  const grid = el('stakes-grid'); grid.innerHTML = '';
+  STAKE_OPTIONS.forEach(s=>{
+    const btn = document.createElement('button');
+    btn.className = 'stake-btn';
+    btn.style.background = (GAME.stake===s||GAME.stake===s*2) ? 'linear-gradient(90deg,#ffd057,#ffb86b)' : '#2b2b2b';
+    btn.style.color = (GAME.stake===s*2)?'#000':'#fff';
+    btn.style.borderRadius = '8px';
+    btn.style.padding = '10px';
+    btn.textContent = (GAME.stake===s*2)?`${s}x2` : `${s}`;
+    btn.onclick = ()=>{
+      if(GAME.lastClicked===s){
+        if(GAME.stake===s) GAME.stake = s*2; else GAME.stake = s;
+      } else {
+        GAME.stake = s;
+      }
+      GAME.lastClicked = s; saveAll(); refreshUI();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+/* tx list */
+function renderTxList(){
+  const box = el('tx-list'); box.innerHTML = '';
+  if(!CURRENT){ box.textContent = 'Login to see history'; return; }
+  const txs = USERS[CURRENT]?.transactions || [];
+  if(!txs.length){ box.innerHTML = '<div class="small">No transactions yet</div>'; return; }
+  txs.slice(0,200).forEach(t=>{
+    const d = document.createElement('div'); d.className = 'row'; d.style.justifyContent='space-between'; d.style.padding='6px 4px';
+    const left = document.createElement('div'); left.textContent = (t.ts||'').slice(0,19).replace('T',' ');
+    const right = document.createElement('div'); right.textContent = `${t.type.toUpperCase()} ${t.amount}`;
+    right.style.color = (t.type==='deposit' || t.type==='win')? '#6ee7b7' : '#ff9b9b';
+    d.appendChild(left); d.appendChild(right); box.appendChild(d);
+  });
+}
+
+/* bank actions */
+function addOrUpdateBank(){
+  if(!CURRENT) return showToast('Login required');
+  const bank_name = prompt('Bank name:');
+  if(!bank_name) return;
+  const acc_name = prompt('Account name:');
+  if(!acc_name) return;
+  const acc_num = prompt('Account number:');
+  if(!acc_num) return;
+  USERS[CURRENT].bank = { bank_name, acc_name, acc_num };
+  saveAll(); showToast('Bank saved'); refreshUI();
+}
+function unlinkBank(){
+  if(!CURRENT) return;
+  USERS[CURRENT].bank = null; saveAll(); showToast('Bank removed'); refreshUI();
+}
+
+/* deposit/withdraw */
+function depositPrompt(){
+  if(!CURRENT) return showToast('Login required');
+  const val = prompt('Deposit amount (simulated):', '100'); const n = parseInt(val,10);
+  if(!n||n<=0) return showToast('Invalid amount');
+  USERS[CURRENT].balance = (USERS[CURRENT].balance||0) + n; addTransaction(CURRENT,'deposit',n); saveAll(); showToast('Deposited '+n); refreshUI();
+}
+function withdrawPrompt(){
+  if(!CURRENT) return showToast('Login required');
+  const val = prompt('Withdraw amount (simulated):', '50'); const n = parseInt(val,10);
+  if(!n||n<=0) return showToast('Invalid amount');
+  if((USERS[CURRENT].balance||0) < n) return showToast('Not enough balance');
+  USERS[CURRENT].balance -= n; addTransaction(CURRENT,'withdraw',n); saveAll(); showToast('Withdrew '+n); refreshUI();
+}
+
+/* password change */
+async function changePasswordFlow(){
+  if(!CURRENT) return showToast('Login required');
+  const oldp = prompt('Current password:'); if(oldp==null) return;
+  const h = await hashText(oldp); if(h !== USERS[CURRENT].passwordHash) return showToast('Wrong password');
+  const np = prompt('New password:'); if(!np) return;
+  USERS[CURRENT].passwordHash = await hashText(np); saveAll(); showToast('Password changed');
+}
+
+/* canvas & wheel draw */
+function resizeCanvas(){
+  const containerW = canvas.parentElement.clientWidth;
+  const size = Math.min(containerW, 600);
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(size * dpr);
+  canvas.height = Math.floor(size * dpr);
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawWheel();
+}
+
+function drawWheel(){
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  // background
+  const cx = W/2, cy = H/2 - 10;
+  const radius = Math.min(W,H) * 0.35;
+  // radial gradient
+  const grad = ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#111'); grad.addColorStop(1,'#1b1b1b'); ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  const num = PRIZES.length; const per = (Math.PI*2)/num;
+  let angle = (GAME.angle * Math.PI) / 180;
+  for(let i=0;i<num;i++){
+    const start = angle + i*per;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,radius,start,start+per); ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill(); ctx.strokeStyle='#0b0b0b'; ctx.lineWidth=2; ctx.stroke();
+    // label
+    const mid = start + per/2;
+    ctx.save();
+    ctx.translate(cx + Math.cos(mid)*radius*0.65, cy + Math.sin(mid)*radius*0.65);
+    ctx.rotate(mid);
+    ctx.fillStyle = (PRIZES[i]==='X')?'#fff':'#000'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign='center'; ctx.fillText(PRIZES[i],0,0);
+    ctx.restore();
+  }
+  // center
+  ctx.beginPath(); ctx.arc(cx,cy,36,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); ctx.strokeStyle='#ddd'; ctx.stroke();
+  // arrow
+  ctx.beginPath(); const ax = W/2, ay = 22; ctx.moveTo(ax-18,ay); ctx.lineTo(ax+18,ay); ctx.lineTo(ax,ay+34); ctx.closePath(); ctx.fillStyle='#ffd700'; ctx.fill(); ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.stroke();
+}
+
+function spawnConfetti(){
+  GAME._conf = GAME._conf || [];
+  for(let i=0;i<50;i++) GAME._conf.push({ x:canvas.clientWidth/2, y:canvas.clientHeight/2, vx:(Math.random()*8)-4, vy:(Math.random()*-6)-2, c:['#ffd057','#f05454','#57f5c8','#54a0f0'][Math.floor(Math.random()*4)] });
+}
+
+function updateConfetti(){
+  if(!GAME._conf) return;
+  GAME._conf.forEach(p=>{ p.x += p.vx; p.y += p.vy; p.vy += 0.25; ctx.fillStyle=p.c; ctx.fillRect(p.x,p.y,5,5); });
+  GAME._conf = GAME._conf.filter(p=>p.y < canvas.clientHeight + 40);
+}
+
+/* animation loop */
+function step(){
+  if(GAME.spinning){
+    GAME.angle += GAME.speed;
+    GAME.speed *= 0.985;
+    if(GAME.speed < 0.2){
+      GAME.spinning = false;
+      // stop - compute winner
+      const rel = (ARROW_ANGLE - GAME.angle) % 360; const norm = (rel+360)%360;
+      const seg = Math.floor(norm / (360 / PRIZES.length)) % PRIZES.length;
+      const prize = PRIZES[seg];
+      if(prize === 'X'){
+        el('game-result').textContent = 'YOU LOSE!'; el('game-result').style.color = '#ff6b6b'; el('game-result').classList.remove('hidden');
+        addTransaction(CURRENT,'lose',0); showToast('You lost');
+      } else {
+        const mult = parseInt(prize.replace(/x/i,''),10); const winnings = GAME.stake * mult;
+        USERS[CURRENT].balance = (USERS[CURRENT].balance||0) + winnings;
+        addTransaction(CURRENT,'win',winnings); saveAll(); refreshUI();
+        el('game-result').textContent = `YOU WON ${winnings}!`; el('game-result').style.color = '#6ee7b7'; el('game-result').classList.remove('hidden');
+        spawnConfetti(); showToast('You won '+winnings);
+      }
+      el('btn-playagain').classList.remove('hidden'); GAME.showPlayAgain = true;
+    }
+  }
+  drawWheel();
+  updateConfetti();
+  requestAnimationFrame(step);
+}
+
+/* spin control */
+function spinOnce(){
+  if(!CURRENT) return showToast('Please login');
+  if(GAME.spinning || GAME.showPlayAgain) return;
+  if((USERS[CURRENT].balance||0) < GAME.stake) return showToast('Not enough balance');
+  // deduct stake
+  USERS[CURRENT].balance -= GAME.stake; addTransaction(CURRENT,'stake',GAME.stake); saveAll(); refreshUI();
+  GAME.speed = 12 + Math.random()*6; GAME.spinning = true; el('game-result').classList.add('hidden'); el('btn-playagain').classList.add('hidden'); GAME.showPlayAgain = false;
+}
+
+/* play again reset */
+function playAgain(){
+  GAME.angle = 0; GAME.showPlayAgain = false; el('btn-playagain').classList.add('hidden'); el('game-result').classList.add('hidden'); GAME._conf = []; drawWheel();
+}
+
+/* events binding */
+function bindUI(){
+  el('btn-login').onclick = ()=>login(el('inp-username').value.trim(), el('inp-password').value);
+  el('btn-signup').onclick = ()=>signup(el('inp-username').value.trim(), el('inp-password').value);
+  el('btn-guest').onclick = ()=>guestLogin();
+  el('btn-logout').onclick = logout;
+
+  el('goto-game').onclick = ()=>{ showScreen('game'); setTimeout(()=>resizeCanvas(),50); };
+  el('goto-profile').onclick = ()=>{ showScreen('profile'); };
+  el('goto-settings').onclick = ()=>{ showScreen('settings'); };
+  el('goto-history').onclick = ()=>{ showScreen('history'); };
+  el('btn-back-menu').onclick = ()=>showScreen('menu');
+  el('btn-back-menu2').onclick = ()=>showScreen('menu');
+  el('btn-back-from-history').onclick = ()=>showScreen('profile');
+  el('btn-back-from-settings').onclick = ()=>showScreen('menu');
+  el('btn-reset').onclick = ()=>{ GAME.angle=0; GAME._conf=[]; el('game-result').classList.add('hidden'); drawWheel(); };
+  el('btn-spin').onclick = spinOnce;
+  el('btn-playagain').onclick = playAgain;
+
+  el('btn-deposit').onclick = depositPrompt;
+  el('btn-withdraw').onclick = withdrawPrompt;
+  el('btn-bank').onclick = ()=>showScreen('bank');
+  el('btn-addbank').onclick = addOrUpdateBank;
+  el('btn-unlinkbank').onclick = unlinkBank;
+  el('btn-back-profile').onclick = ()=>showScreen('profile');
+  el('btn-change-pw').onclick = changePasswordFlow;
+  el('btn-login').addEventListener('keydown', (e)=>{ if(e.key==='Enter') login(); });
+
+  // canvas resize and basic touch
+  window.addEventListener('resize', resizeCanvas);
+  canvas.addEventListener('click', ()=>{ if(el('screen-game').classList.contains('hidden')) return; if(!GAME.spinning && !GAME.showPlayAgain){ /* dismiss welcome if any */ } });
+}
+
+/* init */
+(function(){
+  // restore users var
+  USERS = loadUsers();
+  // if no users exist, create demo account 'player'
+  if(Object.keys(USERS).length===0){ (async ()=>{ const h = await hashText('password'); USERS['player'] = { passwordHash:h, balance:500, transactions:[], bank:null }; saveAll(); })(); }
+  bindUI(); refreshUI(); showScreen(getSession()? 'menu':'login'); resizeCanvas(); requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
