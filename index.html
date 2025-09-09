@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
 <title>Dev Sammy Spin Wheel</title>
@@ -387,10 +389,31 @@ function unlinkBank(){
 /* deposit/withdraw */
 function depositPrompt(){
   if(!CURRENT) return showToast('Login required');
-  const val = prompt('Deposit amount (simulated):', '100'); const n = parseInt(val,10);
-  if(!n||n<=0) return showToast('Invalid amount');
-  USERS[CURRENT].balance = (USERS[CURRENT].balance||0) + n; addTransaction(CURRENT,'deposit',n); saveAll(); showToast('Deposited '+n); refreshUI();
+  const val = prompt('Enter deposit amount (NGN, min ₦2000):', '2000'); 
+  const amount = parseInt(val, 10);
+  if(!amount || amount < 2000) return showToast('Minimum deposit is ₦2000');
+
+  const handler = PaystackPop.setup({
+    key: 'pk_test_d9bcf30d4a79560fcd03a8304e85b733aee25df9', // TODO: replace with your Paystack public key
+    email: CURRENT + "@spinwheel.com",   // fake email based on username
+    amount: amount * 100, // Paystack uses kobo
+    currency: "NGN",
+    callback: function(response){
+      // Payment was successful!
+      USERS[CURRENT].balance = (USERS[CURRENT].balance||0) + amount;
+      addTransaction(CURRENT,'deposit',amount);
+      saveAll();
+      showToast('Deposit successful: ₦' + amount);
+      refreshUI();
+    },
+    onClose: function(){
+      showToast('Deposit window closed');
+    }
+  });
+
+  handler.openIframe();
 }
+
 function withdrawPrompt(){
   if(!CURRENT) return showToast('Login required');
   const val = prompt('Withdraw amount (simulated):', '50'); const n = parseInt(val,10);
@@ -549,6 +572,7 @@ function bindUI(){
 </script>
 </body>
 </html>
+
 
 
 
